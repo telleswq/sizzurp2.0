@@ -5,10 +5,10 @@ import { ShoppingBasketIcon } from "lucide-react";
 import Image from "next/image";
 
 import { getCart } from "@/actions/get-cart";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatCentsToBRL } from "@/helpers/money";
 
-import { Badge } from "../ui/badge";
 import { ScrollArea } from "../ui/scroll-area";
 import { Separator } from "../ui/separator";
 import {
@@ -33,11 +33,9 @@ export const Cart = () => {
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <div className="relative">
-          <Button variant="outline" size="icon">
-            <ShoppingBasketIcon />
-          </Button>
-          {/* Badge contador - só aparece quando há itens */}
+        <Button variant="outline" size="icon" className="relative">
+          <ShoppingBasketIcon />
+
           {totalItems > 0 && (
             <Badge
               className="absolute -top-2 -right-2 h-5 min-w-5 border-none px-1.5 text-white"
@@ -46,7 +44,7 @@ export const Cart = () => {
               {totalItems}
             </Badge>
           )}
-        </div>
+        </Button>
       </SheetTrigger>
       <SheetContent>
         <SheetHeader>
@@ -61,6 +59,7 @@ export const Cart = () => {
                   <CartItem
                     key={item.id}
                     id={item.id}
+                    productVariantId={item.productVariant.id}
                     productName={item.productVariant.product.name}
                     productVariantName={item.productVariant.name}
                     productVariantImageUrl={item.productVariant.imageUrl}
