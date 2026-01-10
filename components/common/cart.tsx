@@ -6,6 +6,7 @@ import Image from "next/image";
 
 import { getCart } from "@/actions/get-cart";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 import {
   Sheet,
@@ -21,12 +22,27 @@ export const Cart = () => {
     queryKey: ["cart"],
     queryFn: () => getCart(),
   });
+
+  // Calcula a quantidade total de itens no carrinho
+  const totalItems = cart?.items.reduce((acc, item) => acc + item.quantity, 0) ?? 0;
+
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="outline" size="icon">
-          <ShoppingBasketIcon />
-        </Button>
+        <div className="relative">
+          <Button variant="outline" size="icon">
+            <ShoppingBasketIcon />
+          </Button>
+          {/* Badge contador - só aparece quando há itens */}
+          {totalItems > 0 && (
+            <Badge
+              className="absolute -right-2 -top-2 h-5 min-w-5 border-none px-1.5 text-white"
+              style={{ backgroundColor: '#8e51ff' }}
+            >
+              {totalItems}
+            </Badge>
+          )}
+        </div>
       </SheetTrigger>
       <SheetContent>
         <SheetHeader>
