@@ -1,10 +1,10 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useState } from "react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { PatternFormat } from "react-number-format";
+import { toast } from "sonner";
 import z from "zod";
 
 import { Button } from "@/components/ui/button";
@@ -20,14 +20,15 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { useCreateShippingAddress } from "@/hooks/mutations/use-create-shipping-address";
 import { fetchAddressByCep } from "@/lib/viacep";
 
 const formSchema = z.object({
-  email: z.email("E-mail inválido"),
+  email: z.string().email("E-mail inválido"),
   fullName: z.string().min(1, "Nome completo é obrigatório"),
-  cpf: z.string().min(14, "CPF inválido"),
-  phone: z.string().min(15, "Celular inválido"),
-  zipCode: z.string().min(9, "CEP inválido"),
+  cpf: z.string().regex(/^\d{3}\.\d{3}\.\d{3}-\d{2}$/, "CPF inválido"),
+  phone: z.string().regex(/^\(\d{2}\) \d{5}-\d{4}$/, "Celular inválido"),
+  zipCode: z.string().regex(/^\d{5}-\d{3}$/, "CEP inválido"),
   address: z.string().min(1, "Endereço é obrigatório"),
   number: z.string().min(1, "Número é obrigatório"),
   complement: z.string().optional(),
@@ -40,6 +41,7 @@ type FormValues = z.infer<typeof formSchema>;
 
 const Addresses = () => {
   const [selectedAddress, setSelectedAddress] = useState<string | null>(null);
+  const createShippingAddressMutation = useCreateShippingAddress();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -58,28 +60,44 @@ const Addresses = () => {
     },
   });
 
+  // -------------- BUSCAR CEP --------------
   const zipCode = form.watch("zipCode");
+
   useEffect(() => {
-    async function handleZipCode() {
-      if (!zipCode) return;
+    if (!zipCode) return;
 
-      const data = await fetchAddressByCep(zipCode);
+    const timeout = setTimeout(async () => {
+      try {
+        const data = await fetchAddressByCep(zipCode);
+        if (data) {
+          form.setValue("address", data.logradouro);
+          form.setValue("neighborhood", data.bairro);
+          form.setValue("city", data.localidade);
+          form.setValue("state", data.uf);
+        }
+      } catch (error) {
+        console.error("Erro ao buscar CEP:", error);
+        toast.error("Não foi possível buscar o CEP.");
+      }
+    }, 500); // debounce 500ms
 
-      if (!data) return;
-
-      form.setValue("address", data.logradouro);
-      form.setValue("neighborhood", data.bairro);
-      form.setValue("city", data.localidade);
-      form.setValue("state", data.uf);
-    }
-
-    handleZipCode();
+    return () => clearTimeout(timeout);
   }, [zipCode, form]);
 
-  const onSubmit = (values: FormValues) => {
-    console.log(values);
+  // -------------- SUBMIT FORMULÁRIO --------------
+  const onSubmit = async (values: FormValues) => {
+    try {
+      await createShippingAddressMutation.mutateAsync(values);
+      toast.success("Endereço criado com sucesso!");
+      form.reset();
+      setSelectedAddress(null);
+    } catch (error) {
+      toast.error("Erro ao criar endereço. Tente novamente.");
+      console.error(error);
+    }
   };
 
+  // -------------- RENDER --------------
   return (
     <Card>
       <CardHeader>
@@ -103,6 +121,7 @@ const Addresses = () => {
               onSubmit={form.handleSubmit(onSubmit)}
               className="mt-4 space-y-4"
             >
+              {/* EMAIL */}
               <FormField
                 control={form.control}
                 name="email"
@@ -117,6 +136,7 @@ const Addresses = () => {
                 )}
               />
 
+              {/* NOME COMPLETO */}
               <FormField
                 control={form.control}
                 name="fullName"
@@ -134,6 +154,7 @@ const Addresses = () => {
                 )}
               />
 
+              {/* CPF / TELEFONE */}
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -174,6 +195,7 @@ const Addresses = () => {
                 />
               </div>
 
+              {/* CEP */}
               <FormField
                 control={form.control}
                 name="zipCode"
@@ -196,6 +218,7 @@ const Addresses = () => {
                 )}
               />
 
+              {/* ENDEREÇO / NÚMERO / COMPLEMENTO */}
               <FormField
                 control={form.control}
                 name="address"
@@ -240,6 +263,7 @@ const Addresses = () => {
                 />
               </div>
 
+              {/* BAIRRO / CIDADE / ESTADO */}
               <div className="grid grid-cols-3 gap-4">
                 <FormField
                   control={form.control}
@@ -284,8 +308,14 @@ const Addresses = () => {
                 />
               </div>
 
-              <Button type="submit" className="w-full">
-                Salvar endereço
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={createShippingAddressMutation.isPending}
+              >
+                {createShippingAddressMutation.isPending
+                  ? "Salvando..."
+                  : "Salvar endereço"}
               </Button>
             </form>
           </Form>
