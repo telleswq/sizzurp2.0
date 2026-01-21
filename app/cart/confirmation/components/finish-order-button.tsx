@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 
+import { createCheckoutSession } from "@/actions/create-checkout-session";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -18,9 +19,15 @@ import { useFinishOrder } from "@/hooks/mutations/use-finish-order";
 const FinishOrderButton = () => {
   const [successDialogIsOpen, setSuccessDialogIsOpen] = useState(false);
   const finishOrderMutation = useFinishOrder();
-  const handleFinishOrder = () => {
-    finishOrderMutation.mutate();
-    setSuccessDialogIsOpen(true);
+  const handleFinishOrder = async () => {
+    const { orderId } = await finishOrderMutation.mutateAsync();
+    const checkoutSession = await createCheckoutSession({
+      orderId,
+    });
+    if (!checkoutSession.url) {
+      throw new Error("Failed to create checkout session");
+    }
+    window.location.href = checkoutSession.url;
   };
   return (
     <>
@@ -36,10 +43,7 @@ const FinishOrderButton = () => {
         Finalizar compra
       </Button>
       <Dialog open={successDialogIsOpen} onOpenChange={setSuccessDialogIsOpen}>
-        <DialogContent
-          className="flex flex-col items-center text-center"
-          style={{ top: "143px", bottom: "auto", left: "20px", right: "20px" }}
-        >
+        <DialogContent className="text-center">
           <Image
             src="/illustration.svg"
             alt="Success"
@@ -53,17 +57,17 @@ const FinishOrderButton = () => {
             na seção de “Meus Pedidos”.
           </DialogDescription>
 
-          <DialogFooter className="flex-col gap-3 sm:flex-col">
-            <Button className="w-full rounded-full" size="lg">
+          <DialogFooter>
+            <Button className="rounded-full" size="lg">
               Ver meus pedidos
             </Button>
             <Button
-              className="w-full rounded-full"
+              className="rounded-full"
               variant="outline"
               size="lg"
               asChild
             >
-              <Link href="/">Página inicial</Link>
+              <Link href="/">Voltar para a loja</Link>
             </Button>
           </DialogFooter>
         </DialogContent>
